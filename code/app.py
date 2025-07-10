@@ -7,28 +7,23 @@ from PIL import Image
 import gradio as gr
 import librosa
 
-# Sử dụng CPU hoặc GPU tùy hệ thống
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# Đọc file nhãn
 au_csv = pd.read_csv("esc50.csv")
 idx2label = dict(zip(au_csv['target'], au_csv['category']))
 
-# Load mô hình
 model = models.resnet18()
 model.fc = nn.Linear(model.fc.in_features, len(idx2label))
 model.load_state_dict(torch.load("esc50_resnet18.pth", map_location=device))
 model.eval()
 model = model.to(device)
 
-# Tiền xử lý ảnh
 tfms = transforms.Compose([
     transforms.Resize((224, 224)),
     transforms.ToTensor(),
     transforms.Normalize(mean=[0.5]*3, std=[0.5]*3)
 ])
 
-# Hàm chuyển file âm thanh thành ảnh Mel spectrogram RGB
 def extract_mel_rgb(path, n_mels=128):
     y, sr = librosa.load(path, sr=44100)
     mel = librosa.feature.melspectrogram(y=y, sr=sr, n_mels=n_mels)
@@ -38,7 +33,6 @@ def extract_mel_rgb(path, n_mels=128):
     mel_db = np.stack([mel_db]*3, axis=-1)
     return mel_db
 
-# Hàm dự đoán
 def predict_audio(path, model):
     mel_img = extract_mel_rgb(path)
     mel_img = transforms.ToPILImage()(mel_img)
@@ -48,7 +42,6 @@ def predict_audio(path, model):
         pred_class = logits.argmax(1).item()
     return pred_class
 
-# Hàm chạy trong giao diện Gradio
 def predict_gradio(file):
     try:
         pred_class = predict_audio(file, model)
@@ -57,7 +50,6 @@ def predict_gradio(file):
     except Exception as e:
         return f"Error: {e}"
 
-# Tạo app Gradio
 demo = gr.Interface(
     fn=predict_gradio,
     inputs=gr.Audio(type="filepath"),
